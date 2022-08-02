@@ -222,13 +222,14 @@ def main(args):
     torch.random.manual_seed(args.seed)
     #print("pass 5.....")
     device = torch.device("cuda:0" if args.cuda and torch.cuda.is_available() else "cpu")
-    #print("pass 6.....")
+    print("pass 6.....")
     if args.data== 'sparse':
+        print("here!!!")
         train_data, test_data = gen_sparse_drug_data(args.max_drugs, args.train_pct, seed=args.seed)
     else:
         train_data = PrevalenceDataset(args.train_fn)
         test_data = PrevalenceDataset(args.test_fn)
-    #print("pass 7.....")
+    print("pass 7.....")
     layers = [(args.embed_dim+ 1, args.hid_dim)] + [(args.hid_dim, args.hid_dim) for _ in range(args.num_eq_layers - 1)]
 
     if args.eqn == 1 and args.model == 'eq':
@@ -316,18 +317,20 @@ def main(args):
     test_dataloader = DataLoader(test_data, **params)
     loss_func = nn.MSELoss()
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
-    print(opt)
-    print(model)
-    print(log)
+    print("opt: ", opt)
+    print("model: ", model)
+    print("log: ", log)
     model, opt, start_epoch, load_success = load_checkpoint(model, opt, log, os.path.join(savedir, 'checkpoint.pth'))
-
+    print("start_epoch: ", start_epoch)
     st = time.time()
 
     for e in range(start_epoch, start_epoch + args.epochs+ 1):
+        print("e: ", e)
         ep_start = time.time()
         batch_maes = []
         batch_mses = []
         for batch in train_dataloader:
+            # print("batch: ", batch)
             for param in model.parameters():
                 param.grad = None
 
@@ -391,15 +394,15 @@ if __name__ == '__main__':
     parser.add_argument('--hid_dim', type=int, default=32)
     parser.add_argument('--out_dim', type=int, default=128)
     parser.add_argument('--num_eq_layers', type=int, default=1)
-    parser.add_argument('--epochs', type=int, default=10000)
-    parser.add_argument('--print_update', type=int, default=1000)
+    parser.add_argument('--epochs', type=int, default=1000)
+    parser.add_argument('--print_update', type=int, default=10)
     parser.add_argument('--save_iter', type=int, default=250)
     parser.add_argument('--cuda', action='store_true', default=False)
     parser.add_argument('--num_workers', type=int, default=1)
     parser.add_argument('--pin', action='store_true', default=False)
-    parser.add_argument('--train_fn', type=str, default='./data/drug_train.csv')
+    parser.add_argument('--train_fn', type=str, default='./data/drug_train_v2.csv')
 
-    parser.add_argument('--test_fn', type=str, default='./data/drug_test.csv')
+    parser.add_argument('--test_fn', type=str, default='./data/drug_test_v2.csv')
     parser.add_argument('--train_pct', type=float, default=0.8)
     parser.add_argument('--data', type=str, default='sparse')
     parser.add_argument('--save_fn', type=str, default='')

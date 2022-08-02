@@ -12,15 +12,18 @@ def _new_key(lst):
 
 def _load_df(fn, agg=None):
     df = pd.read_csv(fn)
+    #print(df.head(1))
     df.drop('Unnamed: 0', axis=1, inplace=True)
-    df.columns = ['combo', 0, 1, 2, 3, 4]
-    print(df)
+    df.columns = ['combo', 0, 1, 2, 3]
+    #print(df)
     if agg == 'mean':
        # df['value'] = df[[0, 1, 2, 3, 4]].replace(np.NaN, 0).mean(axis=1)
-       df['value'] = df[[0, 1, 2, 3, 4]].mean(axis=1)
+       df['value'] = df[[0, 1, 2, 3]].mean(axis=1)
     elif agg == 'median':
        # df['value'] = df[[0, 1, 2, 3, 4]].replace(np.NaN, 0).median(axis=1)
-       df['value'] = df[[0, 1, 2, 3, 4]].median(axis=1)
+       df['value'] = df[[0, 1, 2, 3]].median(axis=1)
+
+    #print(df.head(1))
     return df
 
 def _get_drug_doses(df, max_drugs=5):
@@ -31,6 +34,10 @@ def _get_drug_doses(df, max_drugs=5):
     drugs = np.zeros((len(entities), max_drugs))
     doses = np.zeros((len(dosages), max_drugs))
     for row_id, (ent_row, dose_row) in enumerate(zip(entities, dosages)):
+        #print("row_id: ", row_id)
+        #print("drugs.shape", drugs.shape)
+        #print("PrevalenceDataset.drug_cat_map.shape", PrevalenceDataset.drug_cat_map.shape)
+        #print(ent_row)
         drugs[row_id, :len(ent_row)] = [PrevalenceDataset.drug_cat_map[drug] for drug in ent_row]
         doses[row_id, :len(dose_row)] = [PrevalenceDataset.dose_amounts[drug][d] for drug, d in zip(ent_row, dose_row)]
 
@@ -56,7 +63,7 @@ def _get_bow(cats, num_ents):
     bow[:, 0] = 0
     return torch.IntTensor(bow)
 
-def gen_sparse_drug_data(max_drugs, train_pct, agg='median', seed=0, df_fmt='./data/drug_train.csv'):
+def gen_sparse_drug_data(max_drugs, train_pct, agg='median', seed=0, df_fmt='./data/drug_train_v2.csv'):
     '''
     train data gets all rows with less than max_drugs and train_pct of max_drugs
     test data gets 1 - train_pct of max_drugs
@@ -76,10 +83,10 @@ def gen_sparse_drug_data(max_drugs, train_pct, agg='median', seed=0, df_fmt='./d
     test_dataset = max_drug_test
     return train_dataset, test_dataset
 
-def gen_sparse_embedded_drug_data(max_train_pct, agg='median', seed=0,df_fmt='./data/small.csv'):
+def gen_sparse_embedded_drug_data(max_drugs, max_train_pct, agg='median', seed=0,df_fmt='./data/drug_all_v2.csv'):
                                   #df_fmt='./data/small_{}.csv'):
     max_drug_dataset = PrevalenceDataset(df_fmt.format(max_drugs), max_drugs=max_drugs)
-    train_len = int(train_pct * len(max_drug_dataset))
+    train_len = int(max_train_pct * len(max_drug_dataset))
     test_len = len(max_drug_dataset) - train_len
     max_drug_train, max_drug_test = random_split(max_drug_dataset, (train_len, test_len),
                                                  generator=torch.Generator().manual_seed(seed))
@@ -107,18 +114,18 @@ class PrevalenceDataset(torch.utils.data.Dataset):
     }
 
     # in \muM
-    dose_amounts = {
-        'AMP': {1: 1.87, 2: 2.52, 3: 2.89},
-        'FOX': {1: 0.78, 2: 1.37, 3: 1.78},
-        'TMP': {1: 0.07, 2: 0.15, 3: 0.22},
-        'CPR': {1: 0.01, 2: 0.02, 3: 0.03},
-        'STR': {1: 12.25, 2: 16.6, 3: 19.04},
-        'DOX': {1: 0.15, 2: 0.27, 3: 0.35},
-        'ERY': {1: 1.78, 2: 8.29, 3: 16.62},
-        'FUS': {1: 37.85, 2: 71.01, 3: 94.42},
+    dose_amounts = {  # TS: add dummy 4:
+        'AMP': {1: 1.87, 2: 2.52, 3: 2.89, 4: 3.11},
+        'FOX': {1: 0.78, 2: 1.37, 3: 1.78, 4: 1.94},
+        'TMP': {1: 0.07, 2: 0.15, 3: 0.22, 4: 0.30},
+        'CPR': {1: 0.01, 2: 0.02, 3: 0.03, 4: 0.04},
+        'STR': {1: 12.25, 2: 16.6, 3: 19.04, 4: 20.04},
+        'DOX': {1: 0.15, 2: 0.27, 3: 0.35, 4: 0.45},
+        'ERY': {1: 1.78, 2: 8.29, 3: 16.62, 4: 28.95},
+        'FUS': {1: 37.85, 2: 71.01, 3: 94.42, 4: 107.45},
     }
 
-    def __init__(self, fn, df=None, agg='median', max_drugs=6):
+    def __init__(self, fn, df=None, agg='median', max_drugs=5):
         if not df:
             df = _load_df(fn, agg=agg)
         drug_doses = _get_drug_doses(df, max_drugs)
@@ -216,7 +223,7 @@ class PrevalenceBowDataset(torch.utils.data.Dataset):
 
 if __name__ == '__main__':
     #fn = './data/prevalence/parsed_deduped.csv'
-    fn = './data/drug_all.csv'
+    fn = './data/drug_all_v2.csv'
     #save_fn = './data/prevalence/prevalence_dataset.pkl'
     save_fn = './data/drug_all_from_loader.pkl'
     st = time.time()
